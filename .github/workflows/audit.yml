@@ -1,0 +1,55 @@
+name: audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci || npm install
+
+      # playwright-core 不自带浏览器，装一个 chromium 才能跑真实转换。
+      - run: npx playwright install --with-deps chromium
+
+      # 结构审计：路径遍历、参数边界、引擎哈希、发布包内容、bin 入口。
+      # 注意它会对比主题目录，CI 上没有主题 → 那两条自动跳过，
+      # 但「包内文件与 ENGINE_SHA.json 是否相符」仍然会校验。
+      - run: npm run audit
+
+      # 真实跑一次转换，确认引擎在干净环境里能起来。
+      - name: smoke convert
+        run: |
+          cat > /tmp/smoke.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8"><style>
+          .c{max-width:900px;margin:0 auto;padding:40px;display:flex;gap:20px}
+          .card{flex:1;padding:24px;background:#fff;border-radius:12px;box-shadow:0 7px 21px 3px rgba(0,0,0,.2)}
+          a.btn{display:inline-block;padding:12px 20px;background:#f50;color:#fff;border-radius:8px;text-decoration:none}
+          </style></head><body><div class="c">
+          <div class="card"><h2>One</h2><p>Text</p><a class="btn" href="#">Go</a></div>
+          <div class="card"><h2>Two</h2><p>Text</p></div>
+          </div></body></html>
+          HTML
+          node bin/hte.js /tmp/smoke.html -o /tmp/out.json
+
+      # 阴影必须以官方的复合控件形态出现，旧的分离键一个都不能有。
+      # 这条回归专门盯 2026-09 那个「阴影静默丢失」的 bug。
+      - name: assert box-shadow keys
+        run: |
+          node -e '
+            const t = require("fs").readFileSync("/tmp/out.json", "utf8");
+            const good = (t.match(/"_?box_shadow_box_shadow"/g) || []).length;
+            const bad  = (t.match(/"_?box_shadow_(color|blur|spread|horizontal|vertical|position)"/g) || []).length;
+            console.log("composite shadow keys:", good, " bogus keys:", bad);
+            if (good < 1) { console.error("no box shadow was written"); process.exit(1); }
+            if (bad > 0)  { console.error("bogus shadow keys are back"); process.exit(1); }
+          '

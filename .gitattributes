@@ -1,0 +1,13 @@
+# 全仓库强制 LF。
+#
+# ⚠ 这不是洁癖，是发布正确性问题：npm publish 打包的是**工作区文件**，不是 git 对象。
+#    Git for Windows 默认 core.autocrlf=true，检出时会把 LF 换成 CRLF；
+#    bin/hte.js 一旦带 CRLF，它的 shebang 在 Linux / macOS 上就变成
+#    `#!/usr/bin/env node\r`，执行直接报 `env: node\r: No such file or directory`。
+#    在 Windows 上打包、给全平台用的包，这个坑必踩。
+* text=auto eol=lf
+
+# 二进制（目前没有，先占位，将来加截图/图标不至于被当文本改坏）
+*.png binary
+*.jpg binary
+*.woff2 binary

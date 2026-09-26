@@ -1,0 +1,45 @@
+{
+  "name": "html-converter-for-elementor",
+  "version": "0.1.0",
+  "description": "Convert HTML files into native, editable Elementor templates from the command line. Runs a real browser locally; nothing is uploaded.",
+  "type": "module",
+  "bin": {
+    "html-converter-for-elementor": "bin/hte.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "sync-engine": "node scripts/sync-engine.js",
+    "audit": "node audit/checks.mjs",
+    "audit:network": "node audit/netprobe.mjs"
+  },
+  "keywords": [
+    "elementor",
+    "wordpress",
+    "html",
+    "converter",
+    "template",
+    "cli"
+  ],
+  "author": "Leo (htmltoelementor.com)",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://htmltoelementor.com/",
+  "bugs": {
+    "url": "https://github.com/MLHmR/html-converter-for-elementor/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MLHmR/html-converter-for-elementor.git"
+  },
+  "dependencies": {
+    "playwright-core": "^1.47.0"
+  }
+}
