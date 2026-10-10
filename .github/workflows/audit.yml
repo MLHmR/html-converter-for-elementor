@@ -19,7 +19,9 @@ jobs:
       - run: npm ci || npm install
 
       # playwright-core 不自带浏览器，装一个 chromium 才能跑真实转换。
-      - run: npx playwright install --with-deps chromium
+      # 用 playwright-core 自带的命令装，不用 `npx playwright`：后者每次去 npm 拉最新版 playwright，
+      # 它下载的浏览器版本号与 lock 里的 playwright-core 对不上时，启动直接报 "Executable doesn't exist"。
+      - run: npx playwright-core install --with-deps chromium
 
       # 结构审计：路径遍历、参数边界、引擎哈希、发布包内容、bin 入口。
       # 注意它会对比主题目录，CI 上没有主题 → 那两条自动跳过，
