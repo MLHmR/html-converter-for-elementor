@@ -19,7 +19,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ENGINE_DIR = join(HERE, 'engine');
+// HTE_ENGINE_DIR：审计时直接指向 hte-theme/assets/js 测未同步的引擎（目录里需有 converter.js 与 elementor-components.js）
+const ENGINE_DIR = process.env.HTE_ENGINE_DIR || join(HERE, 'engine');
 
 const HOST_HTML = `<!doctype html>
 <html><head><meta charset="utf-8"><title>hte-cli host</title>
@@ -71,10 +72,10 @@ export function defaultOptions(overrides = {}) {
     optimizeImages: true,
     headingMode: 'semantic',
     headingTopLevel: 1,
-    imageMode: 'placeholder',
+    imageMode: 'preserve',   // 与网站、扩展默认一致；本地/相对路径仍按 assetUrlMode=safe 转成带说明的占位
     assetUrlMode: 'safe',
     assetBaseUrl: '',
-    iconMode: 'svg',
+    iconMode: 'elementor',   // 与网站、扩展默认一致：✓ ★ 这类符号和图标字体才能变成图标框 / 图标列表
     colorMode: 'preserve',
     fontMode: 'preserve',
     ...overrides,
@@ -97,7 +98,12 @@ export async function convertAll(inputs, options, { chromium, onProgress = () =>
   const contacted = new Set();
   let browser;
   try {
-    browser = await chromium.launch({ headless: true });
+    // ⚠ 优先用完整版 Chromium 的新无头模式（channel:'chromium'），不用默认的 headless shell。
+    //   实测（audit/_deep_bare3.mjs）：headless shell 给 ≥200 层嵌套的 DOM 做布局时渲染进程直接崩（"Target crashed"），
+    //   完整版 Chromium、Chrome、Edge 都正常（解析器在 513 层封顶）。网站/扩展跑在真实浏览器里不受影响，只有 CLI 中招。
+    //   旧版 playwright 没有这个 channel 时回落到默认。
+    try { browser = await chromium.launch({ headless: true, channel: 'chromium' }); }
+    catch { browser = await chromium.launch({ headless: true }); }
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
     // ⚠ 审计实测（audit/netprobe.mjs）：清洗器会在渲染前剥掉外链样式表、@font-face、
@@ -120,6 +126,9 @@ export async function convertAll(inputs, options, { chromium, onProgress = () =>
       try { contacted.add(new URL(url).host); } catch { /* 非标准 URL 忽略 */ }
     });
 
+    // HTE_DEBUG=1：把引擎的阶段进度打到终端。定位「渲染进程崩溃」这类没有 JS 堆栈的问题时，只有它能说明死在哪一步。
+    if (process.env.HTE_DEBUG) page.on('console', (m) => { if (/^\[HTE/.test(m.text())) console.error(m.text()); });
+    page.on('crash', () => console.error('[HTE] 渲染进程崩溃'));
     await page.goto(`${origin}/host.html`, { waitUntil: 'load' });
 
     // 引擎里的动态 import 会读 window.HTE_BOOT.ver 拼版本号；不设就是空串，
@@ -148,16 +157,20 @@ export async function convertAll(inputs, options, { chromium, onProgress = () =>
             source = '<!doctype html>' + doc.documentElement.outerHTML;
           }
           const frame = document.getElementById('compute-frame');
+          if (opts.__debugProgress) opts.onProgress = (v, label) => console.log(`[HTE progress] ${Math.round(v * 100)}% ${label}`);
           const r = await window.__hteEngine.convertHtml(source, opts, frame);
           // 只回传可序列化的部分：safeHtml / structureHtml 是大段字符串，
           // CLI 用不到，带回来只会拖慢 IPC。
-          return {
+          // ⚠ 必须先在页面里 JSON.stringify 成字符串再传出来。直接返回对象时，DevTools 协议按对象层级递归序列化，
+          //   300 层嵌套的 HTML → 600 层嵌套的产物对象 → 渲染进程直接崩（"Target crashed"，不是可捕获的异常）。
+          //   深度审计 C 抓出：转换本身早就完成了，死在传出来的最后一步。字符串传输没有层级问题。
+          return JSON.stringify({
             clipboard: r.clipboard,
             template: r.template,
             stats: r.stats,
             warnings: r.warnings,
-          };
-        }, { html: item.html, opts: { ...options, title: options.title || item.name }, block: !allowRemote });
+          });
+        }, { html: item.html, opts: { ...options, title: options.title || item.name, __debugProgress: !!process.env.HTE_DEBUG }, block: !allowRemote }).then((s) => JSON.parse(s));
         results.push({ name: item.name, ...out });
       } catch (error) {
         results.push({ name: item.name, error: String(error && error.message ? error.message : error) });

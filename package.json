@@ -1,6 +1,6 @@
 {
   "name": "html-converter-for-elementor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Convert HTML files into native, editable Elementor templates from the command line. Runs a real browser locally; nothing is uploaded.",
   "type": "module",
   "bin": {

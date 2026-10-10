@@ -36,9 +36,9 @@ html-converter-for-elementor src/*.html -o build/
 # Elementor paste data instead of a template file
 html-converter-for-elementor hero.html --clipboard -o hero.paste.json
 
-# map icon fonts and ✓-style characters onto the Elementor icon library
-# (needed for Icon List / Icon Box output)
-html-converter-for-elementor cards.html --icons elementor
+# keep icons as inline SVG instead of mapping them onto the Elementor icon library
+# (the default, elementor, is what turns ✓-style rows into Icon List / Icon Box widgets)
+html-converter-for-elementor cards.html --icons svg
 ```
 
 | Option | Values | Default |
@@ -46,8 +46,8 @@ html-converter-for-elementor cards.html --icons elementor
 | `-o, --out` | file or directory | next to the input |
 | `--clipboard` | — | off (writes a JSON template) |
 | `--mode` | `native`, `fidelity` | `native` |
-| `--icons` | `svg`, `elementor` | `svg` |
-| `--images` | `placeholder`, `preserve` | `placeholder` |
+| `--icons` | `elementor`, `svg` | `elementor` |
+| `--images` | `preserve`, `placeholder` | `preserve` |
 | `--colors` | `preserve`, `site` | `preserve` |
 | `--fonts` | `preserve`, `site` | `preserve` |
 | `--title` | text | the file name |
@@ -91,6 +91,16 @@ responsive values at several viewport sizes.
 `jsdom` cannot do this: it implements no layout, so every measurement comes back zero.
 Using it would not make the output slightly worse — it would make it wrong. So the CLI
 drives a headless Chromium through `playwright-core`.
+
+It prefers the full Chromium binary in headless mode over Playwright's smaller
+`chromium-headless-shell`. The shell crashes its renderer when it lays out very deeply
+nested markup (around 200 nested elements — some email templates and generated pages
+get there), and the crash surfaces as `Target crashed` rather than a normal error. Full
+Chromium, Chrome and Edge handle the same markup. `npx playwright install chromium`
+installs both binaries, so nothing extra is needed.
+
+If a conversion fails and you want to see which stage it died in, run with
+`HTE_DEBUG=1`: the engine's progress messages are printed to stderr.
 
 ## What does not convert, and why
 

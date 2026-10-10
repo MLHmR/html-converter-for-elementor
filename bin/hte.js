@@ -26,8 +26,8 @@ Options
   -o, --out <path>      Output file or directory (default: alongside the input)
       --clipboard       Write Elementor paste data instead of a JSON template
       --mode <m>        native | fidelity            (default: native)
-      --icons <m>       svg | elementor              (default: svg)
-      --images <m>      placeholder | preserve       (default: placeholder)
+      --icons <m>       elementor | svg              (default: elementor)
+      --images <m>      preserve | placeholder       (default: preserve)
       --colors <m>      preserve | site              (default: preserve)
       --fonts <m>       preserve | site              (default: preserve)
       --title <t>       Template title (default: the file name)
@@ -103,8 +103,10 @@ async function main() {
 
   const options = defaultOptions({
     mode: opts.mode || 'native',
-    iconMode: opts.icons || 'svg',
-    imageMode: opts.images || 'placeholder',
+    iconMode: opts.icons || 'elementor',
+    // 默认保留图片地址，与网站、扩展一致。原来默认 placeholder：不加参数时每张图都是空占位，
+    // 而帮助文字和 README 都在说「远程图片地址会保留」（深度审计 G 抓出）。
+    imageMode: opts.images || 'preserve',
     colorMode: opts.colors || 'preserve',
     fontMode: opts.fonts || 'preserve',
     title: opts.title || '',

@@ -60,14 +60,16 @@ console.log('--- 2. 参数解析边界 ---');
 console.log('--- 3. 引擎与主题是否一致 ---');
 {
   const shaFile = JSON.parse(await readFile(new URL('../src/engine/ENGINE_SHA.json', import.meta.url), 'utf8'));
+  const toLf = (buf) => Buffer.from(buf.toString('utf8').split(String.fromCharCode(13, 10)).join(String.fromCharCode(10)), 'utf8');
   const themeDir = process.env.HTE_THEME_JS
     || join(process.cwd(), '..', 'hte-theme', 'assets', 'js');
   for (const f of Object.keys(shaFile)) {
-    const shipped = await readFile(new URL(`../src/engine/${f}`, import.meta.url));
+    // 两边都先统一成 LF 再比：比的是内容，不是这台机器的换行习惯（主题在 Windows 上可能是 CRLF）。
+    const shipped = toLf(await readFile(new URL(`../src/engine/${f}`, import.meta.url)));
     const shippedSha = createHash('sha256').update(shipped).digest('hex').slice(0, 16);
     if (shippedSha !== shaFile[f]) { bad(`${f}: 打包内容与 ENGINE_SHA.json 不符`); continue; }
     try {
-      const theme = await readFile(join(themeDir, f));
+      const theme = toLf(await readFile(join(themeDir, f)));
       const themeSha = createHash('sha256').update(theme).digest('hex').slice(0, 16);
       if (themeSha !== shippedSha) bad(`${f}: 与主题当前版本不一致（主题 ${themeSha} / 包内 ${shippedSha}）→ 需要 npm run sync-engine`);
       else ok(`${f} 与主题一致 (${shippedSha})`);
@@ -99,6 +101,9 @@ console.log('--- 5. bin 入口 ---');
   const bin = await readFile(new URL('../bin/hte.js', import.meta.url), 'utf8');
   if (bin.startsWith('#!/usr/bin/env node')) ok('shebang 正确');
   else bad('bin/hte.js 缺少 shebang');
+  // npm publish 打包的是工作区文件：bin 带 CRLF 时 shebang 变成 `node<CR>`，Linux / macOS 上直接跑不起来。
+  if (bin.includes(String.fromCharCode(13))) bad('bin/hte.js 带 CRLF 换行，发布后在 Linux / macOS 上无法执行');
+  else ok('bin/hte.js 是 LF 换行');
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   if (pkg.type === 'module') ok('package.json type=module，与 .js 里的 import 语法一致');
   else bad('type 不是 module，bin 会以 CJS 解析并报错');

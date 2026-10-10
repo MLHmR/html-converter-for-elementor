@@ -18,10 +18,14 @@ const SRC = process.env.HTE_THEME_JS
 
 const FILES = ['converter.js', 'elementor-components.js'];
 
+const toLf = (buf) => Buffer.from(buf.toString('utf8').split(String.fromCharCode(13, 10)).join(String.fromCharCode(10)), 'utf8');
+
 const hashes = {};
 await mkdir(DEST, { recursive: true });
 for (const f of FILES) {
-  const body = await readFile(join(SRC, f));
+  // 换行统一成 LF 再落盘、再算哈希：主题文件在 Windows 上可能是 CRLF，而本仓库强制 LF（见 .gitattributes）。
+  // 不统一的话，本机算出的哈希是 CRLF 版的，提交后仓库里是 LF 版，CI 一跑就报「打包内容与 ENGINE_SHA.json 不符」。
+  const body = toLf(await readFile(join(SRC, f)));
   await writeFile(join(DEST, f), body);
   hashes[f] = createHash('sha256').update(body).digest('hex').slice(0, 16);
   process.stdout.write(`${f.padEnd(28)} ${body.length} bytes  sha256:${hashes[f]}\n`);
