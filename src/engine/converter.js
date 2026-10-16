@@ -959,6 +959,11 @@ function mappingSuggestion(node) {
   return { target: "html", confidence: "fallback", reason: "无法可靠匹配，建议保留 HTML 或跳过" };
 }
 
+// 提示文案里给人看的组件名：「counter」「icon-box」→「Counter」「Icon Box」（e-heading 这类 Atomic id 去掉前缀）。
+function componentLabel(id) {
+  return String(id || "").replace(/^e-/, "").split(/[-_]/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(" ");
+}
+
 function canAutomaticallyConvertComponent(target, node, options = {}) {
   switch (target) {
     case "widget:form":
@@ -2645,7 +2650,7 @@ function convertForcedNode(target, node, style, win, options, emit, depth = 0) {
     const componentId = target.slice(7);
     const component = COMPONENT_REGISTRY.get(`atomic:${componentId}`);
     if (!componentAllowedForTarget(component, options)) {
-      warning(options.warnings || [], `component-unavailable-${componentId}`, `${componentId} is not available on the selected target site; the original content was kept.`);
+      warning(options.warnings || [], `component-unavailable-${componentId}`, `${componentLabel(componentId)} is not available on the selected target site; the original content was kept.`);
       return null;
     }
     options.convertedNodes.add(node);
@@ -2653,8 +2658,8 @@ function convertForcedNode(target, node, style, win, options, emit, depth = 0) {
       ? [...node.childNodes].flatMap(child => convertNode(child, win, options, depth + 1))
       : [];
     const atomicMessage = VERIFIED_ATOMIC_COMPONENTS.has(componentId)
-      ? `${componentId} was created from the verified Atomic props schema; the target site needs Atomic Widgets enabled.`
-      : `${componentId} has no reliable HTML mapping yet, so an empty Atomic element was created; fill in its content in Elementor.`;
+      ? `${componentLabel(componentId)} was created from the verified Atomic props schema; the target site needs Atomic Widgets enabled.`
+      : `${componentLabel(componentId)} has no reliable HTML mapping yet, so an empty Atomic element was created; fill in its content in Elementor.`;
     warning(options.warnings || [], `atomic-component-${componentId}`, atomicMessage);
     return emit(atomicComponent(componentId, node, children, component?.kind === "element", options));
   }
@@ -2662,16 +2667,16 @@ function convertForcedNode(target, node, style, win, options, emit, depth = 0) {
     const componentId = target.slice(target.indexOf(":") + 1);
     const component = COMPONENT_REGISTRY.get(`classic:${componentId}`);
     if (!componentAllowedForTarget(component, options)) {
-      warning(options.warnings || [], `component-unavailable-${componentId}`, `${componentId} is not available on the selected target site; the original content was kept.`);
+      warning(options.warnings || [], `component-unavailable-${componentId}`, `${componentLabel(componentId)} is not available on the selected target site; the original content was kept.`);
       return null;
     }
     if (["image-gallery", "image-carousel"].includes(componentId) && !allMediaCouldProduceUrls(node, options)) {
-      warning(options.warnings || [], `${componentId}-media-incomplete`, `${componentId} contains relative or data images that would become empty; they were kept as separate Image widgets.`);
+      warning(options.warnings || [], `${componentId}-media-incomplete`, `${componentLabel(componentId)} contains relative or data images that would become empty; they were kept as separate Image widgets.`);
       return null;
     }
     options.convertedNodes.add(node);
     const settings = genericComponentSettings(componentId, node, style, options);
-    warning(options.warnings || [], `generic-component-${componentId}`, `${componentId} was created as a native Elementor widget; settings that cannot be read from the HTML need to be filled in in Elementor.`);
+    warning(options.warnings || [], `generic-component-${componentId}`, `${componentLabel(componentId)} was created as a native Elementor widget; check the settings the HTML cannot express, such as animation or behaviour, in Elementor.`);
     if (componentId === "form") {
       // ⚠ 表单小组件只装得下字段和按钮。表单里的标题、说明、「点击注册即表示同意…」原来整段丢了
       //   （真实站点体检：Bootstrap heroes 的注册框、footers 的订阅框）。按文档顺序取出来，放到表单上方/下方。
