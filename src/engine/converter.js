@@ -77,14 +77,14 @@ function mediaSource(node, options = {}) {
   const assetUrlMode = options.assetUrlMode || "safe";
   if (/^data:image\/(?:png|jpe?g|gif|webp|avif);base64,/i.test(source)) {
     if (assetUrlMode === "preserve") {
-      warning(warnings, "data-media-preserved", "图片包含 Base64 data URL；Elementor 模板导入时可能无法写入媒体库。");
+      warning(warnings, "data-media-preserved", "Images use Base64 data URLs; Elementor may not be able to add them to the Media Library on import.");
       return source;
     }
-    warning(warnings, "data-media-placeholder", "Base64 data 图片已转为空占位，避免 Elementor 导入媒体库失败。");
+    warning(warnings, "data-media-placeholder", "Base64 images were turned into empty placeholders so the Elementor import does not fail.");
     return "";
   }
   if (/^\/\//.test(source)) {
-    warning(warnings, "protocol-relative-media-normalized", "协议相对图片地址已规范为 https 绝对地址，便于 Elementor 导入媒体库。");
+    warning(warnings, "protocol-relative-media-normalized", "Protocol-relative image URLs were rewritten as absolute https URLs so Elementor can import them.");
     return `https:${source}`;
   }
   if (/^https?:\/\//i.test(source)) return source;
@@ -93,21 +93,21 @@ function mediaSource(node, options = {}) {
     if (assetUrlMode === "resolve" && base) {
       try {
         const resolved = new URL(source, base).href;
-        warning(warnings, "relative-media-resolved", "相对图片地址已使用原站点资源 Base URL 补全为绝对地址。");
+        warning(warnings, "relative-media-resolved", "Relative image URLs were completed to absolute URLs using the source site's base URL.");
         return resolved;
       } catch {
-        warning(warnings, "relative-media-resolve-failed", "相对图片地址无法补全，已转为空占位。");
+        warning(warnings, "relative-media-resolve-failed", "Relative image URLs could not be completed and were turned into empty placeholders.");
         return "";
       }
     }
     if (assetUrlMode === "preserve") {
-      warning(warnings, "relative-media-preserved", "图片包含相对地址；导入目标站点后可能指向错误路径或无法导入媒体库。");
+      warning(warnings, "relative-media-preserved", "Images use relative URLs; on the target site they may point to the wrong path or fail to import.");
       return source;
     }
-    warning(warnings, "relative-media-placeholder", "相对图片地址已转为空占位，避免导入后指向目标站点错误路径。");
+    warning(warnings, "relative-media-placeholder", "Relative image URLs were turned into empty placeholders so they do not point to the wrong path after import.");
     return "";
   }
-  warning(warnings, "unsupported-media-url-placeholder", "不支持的图片地址已转为空占位。");
+  warning(warnings, "unsupported-media-url-placeholder", "Unsupported image URLs were turned into empty placeholders.");
   return "";
 }
 
@@ -268,25 +268,25 @@ function sanitizeStyleDeclaration(style, warnings) {
     const keepBackground = /^background(-image)?$/i.test(property) && urls.every(url => cssUrlIsSelfContained(url) || /^https:\/\//i.test(url));
     if (!keepBackground && urls.some(url => !cssUrlIsSelfContained(url))) {
       style.removeProperty(property);
-      warning(warnings, "css-external-url-removed", "已移除 CSS 中的外部或相对 URL 资源，避免追踪请求和失效资源。");
+      warning(warnings, "css-external-url-removed", "External or relative URLs in the CSS were removed to avoid tracking requests and broken resources.");
     }
   });
   if (style.getPropertyValue("position").trim().toLowerCase() === "fixed") {
     const priority = style.getPropertyPriority("position");
     style.setProperty("position", "absolute", priority);
-    warning(warnings, "fixed-position-contained", "已把 position:fixed 限制为 absolute，避免导入内容覆盖目标站点整个视口。");
+    warning(warnings, "fixed-position-contained", "position: fixed was changed to absolute so imported content cannot cover the whole target page.");
   }
   const zIndex = Number(style.getPropertyValue("z-index"));
   if (Number.isFinite(zIndex) && zIndex > 1000) {
     style.setProperty("z-index", "1000", style.getPropertyPriority("z-index"));
-    warning(warnings, "z-index-limited", "已限制过高的 z-index，降低覆盖目标站点编辑界面的风险。");
+    warning(warnings, "z-index-limited", "Very high z-index values were capped so imported content cannot cover the editor.");
   }
 }
 
 function scopeCssText(css, scopeSelector, idMap, warnings) {
   try {
     const imports = css.match(/@import\s+(?:url\([^;]+\)|["'][^"']+["'])[^;]*;/gi) || [];
-    if (imports.length) warning(warnings, "css-import-removed", "已移除 CSS @import 外部样式。", imports.length);
+    if (imports.length) warning(warnings, "css-import-removed", "External CSS @import rules were removed.", imports.length);
     const safeCss = css.replace(/@import\s+(?:url\([^;]+\)|["'][^"']+["'])[^;]*;/gi, "");
     const sheet = new CSSStyleSheet();
     sheet.replaceSync(safeCss);
@@ -309,7 +309,7 @@ function scopeCssText(css, scopeSelector, idMap, warnings) {
     const serializeRules = rules => [...rules].map(rule => {
       const type = rule.constructor.name;
       if (type === "CSSImportRule") {
-        warning(warnings, "css-import-removed", "已移除 CSS @import 外部样式。");
+        warning(warnings, "css-import-removed", "External CSS @import rules were removed.");
         return "";
       }
       if (type === "CSSStyleRule") {
@@ -325,7 +325,7 @@ function scopeCssText(css, scopeSelector, idMap, warnings) {
         return `@keyframes ${name}{${[...rule.cssRules].map(frame => frame.cssText).join("")}}`;
       }
       if (type === "CSSFontFaceRule") {
-        warning(warnings, "font-face-removed", "已移除 @font-face 外部字体资源；可在目标站点字体设置中重新配置。");
+        warning(warnings, "font-face-removed", "External @font-face fonts were removed; set the fonts again in the target site's settings.");
         return "";
       }
       if (rule.cssRules) return serializeRules(rule.cssRules);
@@ -333,7 +333,7 @@ function scopeCssText(css, scopeSelector, idMap, warnings) {
     }).join("");
     return serializeRules(sheet.cssRules);
   } catch {
-    warning(warnings, "css-parse-failed", "部分 CSS 无法安全解析，已移除而不是原样注入。");
+    warning(warnings, "css-parse-failed", "Some CSS could not be parsed safely and was removed instead of being copied as is.");
     return "";
   }
 }
@@ -557,7 +557,7 @@ function backgroundAndBorder(settings, style, options, shadowPrefix = "box_shado
       // 「媒体 URL：保持原样」才保留。绝对/相对 URL 原样带过去。
       const dropBg = /^data:/i.test( bgUrl ) && ( options.assetUrlMode || "safe" ) !== "preserve";
       if ( dropBg ) {
-        warning( options.warnings || [], "data-background-placeholder", "Base64 背景图已移除，避免 Elementor 导入失败；请在编辑器里重新设置背景图。" );
+        warning( options.warnings || [], "data-background-placeholder", "Base64 background images were removed so the import does not fail; set the background again in the editor." );
       } else {
         settings.background_background = "classic";
         settings.background_image = { url: bgUrl, id: "" };
@@ -606,7 +606,7 @@ function backgroundAndBorder(settings, style, options, shadowPrefix = "box_shado
     const shadow = parseBoxShadow(style.boxShadow);
     if (shadow) {
       if (splitCssSelectors(style.boxShadow).length > 1) {
-        warning(options.warnings || [], "box-shadow-multi", "元素包含多重阴影，仅保留最前一层，其余需在 Elementor 中手动补充。");
+        warning(options.warnings || [], "box-shadow-multi", "An element has several shadows; only the top one was kept, add the rest in Elementor.");
       }
       // ⚠ Elementor 的阴影是**一个复合控件**，不是五个分离键。对照官方 4.1.1：
       //   includes/controls/groups/box-shadow.php:57 init_fields() 只产出两个字段
@@ -1115,6 +1115,10 @@ function testimonialParts(node, win) {
   const img = imgs[0] || null;
   if (img && quote.contains(img)) return null;
   if (img && win && img.getBoundingClientRect().width > 160) return null;   // 头像，不是配图
+  // 用首字母做的头像（带底色/圆角的小方块里一两个字母）：评价小组件的头像只能是图片，转过去字母会被拼进职位
+  //   （「MR Head of Product」），圆形头像也没了（2026-10-15 Northwind 测试页）。宁可不认，走通用转换。
+  if (win && [...node.querySelectorAll("*")].some(el => !quote.contains(el) && !el.children.length
+    && /^[\p{L}\p{N}]{1,3}$/u.test(cleanText(el.textContent)) && hasVisualFrame(win.getComputedStyle(el)))) return null;
   const outsideEls = [...node.querySelectorAll("cite, strong, b, figcaption, div, span, p")].filter(el => !quote.contains(el) && cleanText(el.textContent));
   const nameEl = outsideEls.find(el => /^(CITE|STRONG|B)$/.test(el.tagName)) || outsideEls.find(el => !el.querySelector("*")) || null;
   const name = cleanText(nameEl?.textContent) || outside;
@@ -1365,6 +1369,26 @@ function isInlineTextLeaf(node) {
   return true;
 }
 
+/**
+ * 块级元素里只有「直接文字 + 行内标签」：至少一段非空的直接文字，后代全是行内文字标签且真的按行内排（computed display 是 inline*）、
+ * 没有浮动 / 绝对定位。自己是 flex/grid 的不算 —— 那时子元素各自是一个排版块。
+ */
+function isInlineContentBlock(node, style, win) {
+  if (!win || !/^(block|inline-block|list-item|flow-root)$/.test(style.display)) return false;
+  if (![...node.childNodes].some(child => child.nodeType === Node.TEXT_NODE && cleanText(child.textContent))) return false;
+  const descendants = [...node.querySelectorAll("*")];
+  if (!descendants.length) return false;   // 纯文字的 div 由文字节点分支处理，维持原状
+  return descendants.every(el => {
+    if (!(INLINE_TEXT_TAGS.has(el.tagName) || el.tagName === "SPAN" || el.tagName === "BR" || el.tagName === "WBR")) return false;
+    if (el.tagName === "A" && el.querySelector("img, svg")) return false;
+    if (el.tagName === "BR" || el.tagName === "WBR") return true;
+    const s = win.getComputedStyle(el);
+    // 只认真正随文字排的 display:inline。inline-block / inline-flex 是自带盒子的东西（句子里的按钮、胶囊），
+    //   并进一段文字就丢了按钮小组件（自审发现）。
+    return s.display === "inline" && s.float === "none" && !/^(absolute|fixed)$/.test(s.position) && !looksLikeButton(el, s);
+  });
+}
+
 /** ul/ol 是不是被拿来做布局：flex/grid 排版，或者里面装着图片、图标、块级内容。纯文字链接列表不算。 */
 function isLayoutList(node, win) {
   if (!node || !/^(UL|OL)$/.test(node.tagName) || !win) return false;
@@ -1383,6 +1407,8 @@ function structuralTarget(node, win) {
   if (starText(node) || svgStars(node)) return "widget:star-rating";
   if (bootstrapTabs(node)) return "widget:tabs";
   if (ariaAccordionItems(node)) return "widget:accordion";
+  // 一串并列的 <details>（FAQ 列表）= 一个手风琴。原来每个 <details> 各自变成一个只有一项的手风琴（2026-10-15 Northwind 测试页）。
+  if (kids.length >= 2 && kids.every(c => c.tagName === "DETAILS" && c.querySelector(":scope > summary"))) return "widget:accordion";
   if (socialLinks(node)) return "widget:social-icons";
   if (CONTAINER_TAGS.has(tag) || tag === "UL") {
     if (galleryItems(node)) return "widget:image-gallery";
@@ -1503,14 +1529,14 @@ function convertIcon(node, style, options) {
   if (options.iconMode === "preserve") return htmlWidget(node.outerHTML);
   const common = commonSettings(node, style);
   if (options.iconMode === "svg") {
-    warning(options.warnings || [], "svg-icon-inline-html", "图标已转为内嵌 SVG HTML，避免 data SVG 图片导入后变占位。");
+    warning(options.warnings || [], "svg-icon-inline-html", "Icons were kept as inline SVG so they do not become placeholders after import.");
     return htmlWidget(svgIconHtml(node, style, options));
   }
   const definition = iconDefinition(node);
   if (!definition) {
     // 匹配不到图标库时：无类内联 SVG 用尺寸化的内联 SVG 兜底，避免脱离页面 CSS 后按默认尺寸放大、fill 变黑。
     if (String(node.tagName || "").toUpperCase() === "SVG") {
-      warning(options.warnings || [], "svg-icon-sized-fallback", "未匹配到图标库的内联 SVG 已按渲染尺寸内联，避免导入后放大变黑。");
+      warning(options.warnings || [], "svg-icon-sized-fallback", "Inline SVG icons with no match in the icon library were kept at their rendered size.");
       return htmlWidget(svgIconHtml(node, style, options));
     }
     return htmlWidget(node.outerHTML);
@@ -1604,6 +1630,25 @@ function looksLikeIconBox(node) {
   if (node.querySelector("a, button, img, ul, ol, table, form, input, select, textarea, video, iframe")) return false;
   // 图标不能包住标题/段落（避免整卡被当成图标）。
   if (icon.querySelector && icon.querySelector("h1,h2,h3,h4,h5,h6,p")) return false;
+  return true;
+}
+
+// 图标框里那个图标能不能落到图标库（与 buildIconBox 取图标、取标题的方式一致）。
+function iconBoxIconMatches(node) {
+  const iconNode = node.querySelector("svg, i[class]") || node.querySelector("[class*='icon'], [class*='fa-'], [class*='eicon']");
+  const heading = node.querySelector("h1,h2,h3,h4,h5,h6");
+  if (!matchIconName(iconNode, heading ? cleanText(heading.textContent) : "").value) return false;
+  // 源里是一枚内联 SVG、只能按标题关键词「猜」字体图标时：同一排的兄弟卡片只要有一张猜不出，整排都保留原 SVG。
+  //   否则一排里一半是原图标、一半是猜出来的实心图标（盾牌猜成锁、多人猜成单人；2026-10-15 Northwind 测试页）。
+  //   单独一张卡、或整排都能猜中时照旧转图标框（「Instant」+ 闪电 → fa-bolt，线上选型基准的用例）。
+  if (iconNode && iconNode.tagName.toLowerCase() === "svg" && !iconDefinition(iconNode)) {
+    const siblings = [...(node.parentElement?.children || [])].filter(sib => sib !== node && looksLikeIconBox(sib));
+    return siblings.every(sib => {
+      const sibIcon = sib.querySelector("svg, i[class]") || sib.querySelector("[class*='icon'], [class*='fa-'], [class*='eicon']");
+      const sibHeading = sib.querySelector("h1,h2,h3,h4,h5,h6");
+      return !!matchIconName(sibIcon, sibHeading ? cleanText(sibHeading.textContent) : "").value;
+    });
+  }
   return true;
 }
 
@@ -2317,7 +2362,8 @@ function elementWidthSettings(node, parent) {
 //   （真实 Elementor 渲染比对抓出：660px 的居中引言变成整行）。
 // 只处理「父级是纵向排布」的情况：grid 单元格自己定宽，横向 flex 里的小组件本来就按内容宽排。
 // 用像素：限宽文字的每行长度取决于绝对宽度；窄屏由响应式采样改回满宽（见 applyResponsiveSettings）。
-const WIDTH_AWARE_WIDGETS = new Set(["heading", "text-editor", "icon-list"]);
+// accordion：FAQ 常是 max-width + margin:auto 的居中窄栏，不写宽度就铺满整行（2026-10-15 Northwind 测试页）
+const WIDTH_AWARE_WIDGETS = new Set(["heading", "text-editor", "icon-list", "accordion"]);
 function widgetWidthSettings(node, parent, widgetType) {
   const view = node.ownerDocument && node.ownerDocument.defaultView;
   if (!view || !parent) return {};
@@ -2380,6 +2426,10 @@ function positionalRulesHitChildren(doc, parent) {
   return [...doc.styleSheets].some(sheet => { try { return visit(sheet.cssRules); } catch { return false; } });
 }
 
+function treeHasCssClass(elements, cls) {
+  return (elements || []).some(e => String(e.settings?._css_classes || "").split(/\s+/).includes(cls) || treeHasCssClass(e.elements, cls));
+}
+
 function treeHasWidget(elements, types) {
   return (elements || []).some(e => types.includes(e.widgetType) || treeHasWidget(e.elements, types));
 }
@@ -2418,6 +2468,33 @@ function buildTextEditor(node, style, options, editorHtml) {
   return widgetWithGlobals("text-editor", settings, options);
 }
 
+// grid 子项所在网格区域的宽度：按父级解析后的列轨道（computed 的 grid-template-columns 是像素列表）找出
+//   子项左边缘落在哪一列、右边缘延伸到哪一列，加上中间的列间距。父级不是 grid 或解析不了返回 0。
+function gridAreaWidth(node, parent) {
+  const view = node.ownerDocument && node.ownerDocument.defaultView;
+  if (!view || !parent) return 0;
+  const ps = view.getComputedStyle(parent);
+  if (!ps.display.includes("grid")) return 0;
+  const tracks = ps.gridTemplateColumns.split(/\s+/).map(parseFloat).filter(n => Number.isFinite(n) && n > 0);
+  if (!tracks.length) return 0;
+  const gap = parseFloat(ps.columnGap) || 0;
+  const pr = parent.getBoundingClientRect();
+  const r = node.getBoundingClientRect();
+  let x = pr.left + (parseFloat(ps.borderLeftWidth) || 0) + (parseFloat(ps.paddingLeft) || 0);
+  let start = -1;
+  let width = 0;
+  for (let i = 0; i < tracks.length; i++) {
+    const end = x + tracks[i];
+    if (start < 0 && r.left < end - 0.5) start = i;
+    if (start >= 0) {
+      width += tracks[i] + (i > start ? gap : 0);
+      if (r.right <= end + 0.5) return width;
+    }
+    x = end + gap;
+  }
+  return start >= 0 ? width : 0;
+}
+
 function buildImage(node, style, options, { linkAndBorder = false } = {}) {
   const imageNode = node.tagName === "IMG" ? node : node.querySelector("img");
   const settings = commonSettings(node, style);
@@ -2442,8 +2519,11 @@ function buildImage(node, style, options, { linkAndBorder = false } = {}) {
   // 满宽（≥97%）不写 width 交给默认自适应；窄图写百分比；拿不到父容器尺寸才回退像素。
   const iRect = node.getBoundingClientRect ? node.getBoundingClientRect() : null;
   const ipRect = node.parentElement && node.parentElement.getBoundingClientRect ? node.parentElement.getBoundingClientRect() : null;
+  // ⚠ 父级是 grid 时，Elementor 里图片小组件坐在单元格里，宽度百分比的分母是单元格，不是整个网格。
+  //   原来按整个网格算：两栏 hero 右侧满格的大图成了 44%，导入后只剩三分之一大（2026-10-15 Northwind 测试页）。
+  const areaW = node.parentElement ? gridAreaWidth(node, node.parentElement) : 0;
   if (iRect && ipRect && ipRect.width > 0) {
-    const pct = iRect.width / ipRect.width * 100;
+    const pct = iRect.width / (areaW || ipRect.width) * 100;
     if (pct < 97) settings.width = { unit: "%", size: Math.round(pct * 100) / 100, sizes: [] };
   } else {
     const width = unit(style.width);
@@ -2565,7 +2645,7 @@ function convertForcedNode(target, node, style, win, options, emit, depth = 0) {
     const componentId = target.slice(7);
     const component = COMPONENT_REGISTRY.get(`atomic:${componentId}`);
     if (!componentAllowedForTarget(component, options)) {
-      warning(options.warnings || [], `component-unavailable-${componentId}`, `${componentId} 不在所选目标站点组件范围内，已保留原内容。`);
+      warning(options.warnings || [], `component-unavailable-${componentId}`, `${componentId} is not available on the selected target site; the original content was kept.`);
       return null;
     }
     options.convertedNodes.add(node);
@@ -2573,8 +2653,8 @@ function convertForcedNode(target, node, style, win, options, emit, depth = 0) {
       ? [...node.childNodes].flatMap(child => convertNode(child, win, options, depth + 1))
       : [];
     const atomicMessage = VERIFIED_ATOMIC_COMPONENTS.has(componentId)
-      ? `${componentId} 使用已验证的 Atomic Props Schema 生成；依赖目标站点启用 Atomic Widgets。`
-      : `${componentId} 尚未实现可靠的 HTML Props 映射，仅创建空的 Atomic 组件；请在 Elementor 中补充内容。`;
+      ? `${componentId} was created from the verified Atomic props schema; the target site needs Atomic Widgets enabled.`
+      : `${componentId} has no reliable HTML mapping yet, so an empty Atomic element was created; fill in its content in Elementor.`;
     warning(options.warnings || [], `atomic-component-${componentId}`, atomicMessage);
     return emit(atomicComponent(componentId, node, children, component?.kind === "element", options));
   }
@@ -2582,16 +2662,16 @@ function convertForcedNode(target, node, style, win, options, emit, depth = 0) {
     const componentId = target.slice(target.indexOf(":") + 1);
     const component = COMPONENT_REGISTRY.get(`classic:${componentId}`);
     if (!componentAllowedForTarget(component, options)) {
-      warning(options.warnings || [], `component-unavailable-${componentId}`, `${componentId} 不在所选目标站点组件范围内，已保留原内容。`);
+      warning(options.warnings || [], `component-unavailable-${componentId}`, `${componentId} is not available on the selected target site; the original content was kept.`);
       return null;
     }
     if (["image-gallery", "image-carousel"].includes(componentId) && !allMediaCouldProduceUrls(node, options)) {
-      warning(options.warnings || [], `${componentId}-media-incomplete`, `${componentId} 包含会转为空占位的相对/data 图片，已保留为独立图片组件，避免生成空或缺图组件。`);
+      warning(options.warnings || [], `${componentId}-media-incomplete`, `${componentId} contains relative or data images that would become empty; they were kept as separate Image widgets.`);
       return null;
     }
     options.convertedNodes.add(node);
     const settings = genericComponentSettings(componentId, node, style, options);
-    warning(options.warnings || [], `generic-component-${componentId}`, `${componentId} 已生成官方原生组件；无法从 HTML 推导的站点数据或专属设置需在 Elementor 中补充。`);
+    warning(options.warnings || [], `generic-component-${componentId}`, `${componentId} was created as a native Elementor widget; settings that cannot be read from the HTML need to be filled in in Elementor.`);
     if (componentId === "form") {
       // ⚠ 表单小组件只装得下字段和按钮。表单里的标题、说明、「点击注册即表示同意…」原来整段丢了
       //   （真实站点体检：Bootstrap heroes 的注册框、footers 的订阅框）。按文档顺序取出来，放到表单上方/下方。
@@ -2894,7 +2974,8 @@ function genericComponentSettings(componentId, node, style, options) {
         ? { url: options.imageMode === "placeholder" ? "" : mediaSource(t.img, options), id: "" }
         : { url: "", id: "" };             // 必须写（哪怕是空）：默认是占位图
       if (t.img && t.nameEl && t.img.getBoundingClientRect().bottom <= t.nameEl.getBoundingClientRect().top + 2) settings.testimonial_image_position = "top";
-      const align = style.textAlign;
+      // 对齐看引语本身：识别根常常是外层 section（左对齐），居中写在里层的 .quote 上
+      const align = (view?.getComputedStyle(t.quote) || style).textAlign;
       // ⚠ 取值是逻辑方向 start/center/end（testimonial.php），不是 left/right —— 写 left 会被静默忽略
       settings.testimonial_alignment = align === "center" ? "center" : (align === "right" || align === "end") ? "end" : "start";
       const qs = view?.getComputedStyle(t.quote);
@@ -3046,6 +3127,7 @@ function genericComponentSettings(componentId, node, style, options) {
       tab_title: cleanText(detail.querySelector("summary")?.textContent) || "Item",
       tab_content: [...detail.childNodes].filter(child => child.nodeName !== "SUMMARY").map(child => child.outerHTML || escapeHtml(child.textContent || "")).join("")
     }));
+    if (view && details.length) accordionStyle(settings, details[0], view, options);
   }
   const bsTabs = componentId === "tabs" ? bootstrapTabs(node) : null;
   if (bsTabs) {
@@ -3063,6 +3145,60 @@ function genericComponentSettings(componentId, node, style, options) {
     }));
   }
   return settings;
+}
+
+// <details> 手风琴的外观 → 经典手风琴的样式控件（键名已对 accordion.php 核对：title_color / tab_active_color /
+//   title_typography / title_padding / icon_align / icon_color / icon_active_color / content_color / content_typography /
+//   content_padding / border_width / border_color / selected_icon）。
+//   原来只写标题和内容，导入后是 Elementor 默认外观：主题强调色（绿色）标题 + 灰色方框（2026-10-15 Northwind 测试页）。
+const ACCORDION_LINES_CLASS = "hte-acc-lines";
+function accordionStyle(settings, detail, view, options) {
+  const summary = detail.querySelector("summary");
+  if (!summary) return;
+  const ds = view.getComputedStyle(detail);
+  const ss = view.getComputedStyle(summary);
+  const n = value => parseFloat(value) || 0;
+  const box = (top, right, bottom, left) => ({ unit: "px", top: String(Math.round(top)), right: String(Math.round(right)), bottom: String(Math.round(bottom)), left: String(Math.round(left)), isLinked: false });
+  const body = [...detail.children].find(child => child.tagName !== "SUMMARY") || null;
+  const bs = body ? view.getComputedStyle(body) : ds;
+  // 标题区 = details 的上下左右内边距 + summary 自己的内边距（收起时 details 的下内边距也在标题下方）。
+  settings.title_padding = box(n(ds.paddingTop) + n(ss.paddingTop), n(ds.paddingRight) + n(ss.paddingRight), n(ds.paddingBottom) + n(ss.paddingBottom), n(ds.paddingLeft) + n(ss.paddingLeft));
+  // 内容区：标题已带下内边距，内容上方不再加；下方补 details 的下内边距，展开时底部留白和源一致。
+  settings.content_padding = box(0, n(ds.paddingRight), n(ds.paddingBottom), n(ds.paddingLeft));
+  typography(settings, "title_typography", ss, options);
+  if (body) typography(settings, "content_typography", bs, options);
+  if (options.colorMode !== "site") {
+    settings.title_color = color(ss.color);
+    settings.tab_active_color = color(ss.color);
+    if (body) settings.content_color = color(bs.color);
+    settings.title_background = color(ss.backgroundColor);
+    settings.content_background_color = color(ds.backgroundColor);
+  }
+  // 开合标记：::after 在右、::before 在左；都没有、又关掉了默认三角（list-style:none / 非 list-item）→ 不要图标。
+  const marker = side => {
+    const ps = view.getComputedStyle(summary, side);
+    return ps.content && ps.content !== "none" && ps.content !== "normal" && ps.content !== '""' ? ps : null;
+  };
+  const after = marker("::after");
+  const before = marker("::before");
+  if (after || before) {
+    settings.icon_align = after ? "right" : "left";
+    if (options.colorMode !== "site") {
+      const c = color((after || before).color);
+      settings.icon_color = c;
+      settings.icon_active_color = c;
+    }
+  } else if (ss.display !== "list-item") {
+    settings.selected_icon = { value: "", library: "" };
+  }
+  // 边框：只有底边线（FAQ 最常见）时，经典手风琴的「整圈方框」不对 —— 打个标记类，由本块 CSS 改成只留底线。
+  const widths = [ds.borderTopWidth, ds.borderRightWidth, ds.borderBottomWidth, ds.borderLeftWidth].map(n);
+  const w = Math.max(...widths);
+  settings.border_width = { unit: "px", size: Math.round(w), sizes: [] };   // 必须写（哪怕是 0）：默认 1px 灰框
+  if (w > 0 && options.colorMode !== "site") settings.border_color = color(ds.borderBottomColor || ds.borderTopColor);
+  if (w > 0 && widths[0] === 0 && widths[1] === 0 && widths[3] === 0) {
+    settings._css_classes = [settings._css_classes, ACCORDION_LINES_CLASS].filter(Boolean).join(" ");
+  }
 }
 
 // 转换阶段（有真实计算样式）：识别被 CSS 样式成按钮的 a/button/div/span，即使没有 .btn 类。
@@ -3148,7 +3284,7 @@ function convertNode(node, win, options, depth = 0) {
   // 只装 <symbol> / <defs> 的 SVG 是图标库，本身永远不渲染；引用处已在清洗阶段就地展开，这里不必再生成一个空的 HTML 小组件
   if (node.tagName.toLowerCase() === "svg" && node.children.length && [...node.children].every(c => /^(symbol|defs|title|desc)$/i.test(c.tagName))) return [];
   if (depth > MAX_CONVERT_DEPTH) {
-    warning(options.warnings || [], "max-depth-html-fallback", "元素嵌套过深，超出安全层级的子树已整体保留为 HTML 小部件。");
+    warning(options.warnings || [], "max-depth-html-fallback", "Some markup is nested too deeply; the deepest part was kept as an HTML widget.");
     return [htmlWidget(node.outerHTML)];
   }
   const style = win.getComputedStyle(node);
@@ -3253,10 +3389,13 @@ function convertNode(node, win, options, depth = 0) {
     // ② 结构性链接（内含块级元素）：继续往下走卡片识别 / 容器兜底，不在这里拦截。
     // 图片 + 文字的链接（「图标 + 标签」式导航项）也不是内联文字：塞进文本编辑器就是 <p><a><img><span>…
     // 真实站点体检：腾讯工具页左侧导航 11 项全部这样塞进文本框。走结构分支 → 链接容器 + 图片 + 文字。
+    // 自己是 flex/grid、里面有一块没文字的色块（logo 前面的渐变方块）：也是结构。塞进文本框后色块成了行内 span，
+    //   宽高失效直接消失（2026-10-15 Northwind 测试页的 logo）。
     const structural = imgs.length > 0 || [...node.children].some(child =>
       CONTAINER_TAGS.has(child.tagName)
       || /^H[1-6]$/.test(child.tagName)
-      || ["P", "UL", "OL", "TABLE", "DL", "BLOCKQUOTE", "PRE", "FIGURE"].includes(child.tagName));
+      || ["P", "UL", "OL", "TABLE", "DL", "BLOCKQUOTE", "PRE", "FIGURE"].includes(child.tagName))
+      || (/flex|grid/.test(style.display) && [...node.children].some(child => !cleanText(child.textContent) && hasVisualFrame(win.getComputedStyle(child))));
     // ③ 纯内联文字链接：仍然是文本编辑器，这是对的。
     if (!structural) {
       options.convertedNodes.add(node);
@@ -3299,6 +3438,12 @@ function convertNode(node, win, options, depth = 0) {
     options.convertedNodes.add(node);
     return emit(buildTextEditor(node, style, options, `<p>${outerHtmlWithoutRootStyle(node)}</p>`));
   }
+  // 块级 div 里只有文字和行内标签（<div class="price">$49<small>/month</small></div>）= 一段文字。
+  //   原来按容器拆：文字节点一个文本框、<small> 一个文本框，纵向排成两行，中间还隔着间距（2026-10-15 Northwind 测试页）。
+  if (CONTAINER_TAGS.has(tag) && isInlineContentBlock(node, style, win)) {
+    options.convertedNodes.add(node);
+    return emit(buildTextEditor(node, style, options, `<p>${node.innerHTML.trim()}</p>`));
+  }
   if (tag === "VIDEO") {
     options.convertedNodes.add(node);
     return emit(buildVideo(node));
@@ -3330,7 +3475,9 @@ function convertNode(node, win, options, depth = 0) {
 
   // 卡片（图标 + 标题 + 一段文本）→ Elementor 图标框：卡片外框样式转到图标框小组件自身，直接进父级，不再多包一层容器。
   // 仅在「图标 = 匹配 Elementor 图标库」时介入；「保留原始 HTML 图标」「内嵌 SVG」都表示用户要保住原图标，不动。
-  if (CARD_ROOT_TAGS.has(tag) && options.iconMode === "elementor" && looksLikeIconBox(node)) {
+  // ⚠ 图标对不上图标库（自定义 SVG）时不转图标框：图标框的图标只能来自图标库，匹配不到就是空的 ——
+  //   6 张特性卡丢了 4 个图标（2026-10-15 Northwind 测试页）。走下面的容器分支，SVG 按渲染尺寸内联保留。
+  if (CARD_ROOT_TAGS.has(tag) && options.iconMode === "elementor" && looksLikeIconBox(node) && iconBoxIconMatches(node)) {
     return emit(buildCardWidget(node, style, win, options, looksLikeIconBox, buildIconBox));
   }
 
@@ -3360,6 +3507,19 @@ function convertNode(node, win, options, depth = 0) {
     return emit(result);
   }
   if (!VOID_TAGS.has(tag) && childElements.length) return childElements;
+  // 没内容、只有外观的小色块（logo 方块、装饰圆点）：转成空容器，尺寸 / 底色 / 圆角进设置。
+  //   原来进 HTML 小组件：<span> 在小组件里是行内元素，宽高失效，色块直接消失。
+  //   只管非块级标签（span、i…）：空 div 在 HTML 小组件里本来就按 CSS 正常显示（遮罩层、装饰圆斑），不必改动（自审收窄）。
+  if (!VOID_TAGS.has(tag) && !CONTAINER_TAGS.has(tag) && !node.children.length && !cleanText(node.textContent) && hasVisualFrame(style)) {
+    const r = node.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      options.convertedNodes.add(node);
+      const result = container(node, style, [], options);
+      Object.assign(result.settings, elementWidthSettings(node, node.parentElement));
+      if (!result.settings.min_height) result.settings.min_height = { unit: "px", size: Math.round(r.height), sizes: [] };
+      return emit(result);
+    }
+  }
   return emit(htmlWidget(node.outerHTML));
 }
 
@@ -3409,10 +3569,10 @@ function outerHtmlWithoutRootStyle(node) {
 
 function sanitizeDocument(doc, options, warnings) {
   const scripts = doc.querySelectorAll("script,noscript,template");
-  if (scripts.length) warning(warnings, "scripts-removed", "已移除脚本、noscript 或 template 活动内容。", scripts.length);
+  if (scripts.length) warning(warnings, "scripts-removed", "Scripts, noscript and template content were removed.", scripts.length);
   scripts.forEach(node => node.remove());
   const blockedEmbeds = doc.querySelectorAll("object,embed,applet");
-  if (blockedEmbeds.length) warning(warnings, "unsafe-embed-removed", "已移除 object/embed/applet 活动内容。", blockedEmbeds.length);
+  if (blockedEmbeds.length) warning(warnings, "unsafe-embed-removed", "object, embed and applet content was removed.", blockedEmbeds.length);
   blockedEmbeds.forEach(node => node.remove());
   doc.querySelectorAll("form").forEach(form => {
     const mappingTarget = options.elementMappings?.[form.getAttribute(INTERNAL_MAPPING_ATTRIBUTE)];
@@ -3423,10 +3583,10 @@ function sanitizeDocument(doc, options, warnings) {
     ) {
       form.removeAttribute("action");
       form.removeAttribute("method");
-      warning(warnings, "form-action-removed", "表单结构将转换为原生组件，原提交地址与提交方法已移除。");
+      warning(warnings, "form-action-removed", "The form was converted to a native widget; its original action and method were removed.");
       return;
     }
-    warning(warnings, "form-neutralized", "表单已解除提交能力，仅保留内部可见内容。");
+    warning(warnings, "form-neutralized", "The form can no longer submit; only its visible content was kept.");
     form.replaceWith(...form.childNodes);
   });
   doc.querySelectorAll("iframe").forEach(frame => {
@@ -3456,7 +3616,7 @@ function sanitizeDocument(doc, options, warnings) {
       return;
     }
     if (!allowed) {
-      warning(warnings, "iframe-removed", "已移除非 YouTube/Vimeo 的 iframe。");
+      warning(warnings, "iframe-removed", "iframes other than YouTube and Vimeo were removed.");
       frame.remove();
       return;
     }
@@ -3466,7 +3626,7 @@ function sanitizeDocument(doc, options, warnings) {
     frame.setAttribute("loading", "lazy");
   });
   const externalStyles = doc.querySelectorAll("link[rel~='stylesheet'],link[rel~='preload'][as='style']");
-  if (externalStyles.length) warning(warnings, "external-css-removed", "已移除外部 CSS 链接，防止污染目标站点或产生追踪请求。", externalStyles.length);
+  if (externalStyles.length) warning(warnings, "external-css-removed", "External stylesheet links were removed so they cannot affect the target site or make tracking requests.", externalStyles.length);
   externalStyles.forEach(node => node.remove());
   doc.querySelectorAll("base,meta[http-equiv]").forEach(node => node.remove());
   // SVG 雪碧图：<svg><use href="#collection"/></svg>，图形在页面别处的 <symbol id="collection"> 里。
@@ -3476,7 +3636,7 @@ function sanitizeDocument(doc, options, warnings) {
     const ref = (use.getAttribute("href") || use.getAttribute("xlink:href") || "").trim();
     // 外链 <use href="https://…#x">：通用的 URL 清洗放行了 https 链接（对 <a> 是对的），但 <use> 的 href 是资源加载，
     // 和「不带外部资源」的立场冲突（深度审计 B 抓出）。非同文档引用一律摘掉。
-    if (!ref.startsWith("#")) { use.removeAttribute("href"); use.removeAttribute("xlink:href"); warning(warnings, "svg-use-external-removed", "已移除 SVG <use> 的外部引用。"); return; }
+    if (!ref.startsWith("#")) { use.removeAttribute("href"); use.removeAttribute("xlink:href"); warning(warnings, "svg-use-external-removed", "External references in SVG <use> were removed."); return; }
     const symbol = doc.getElementById(ref.slice(1));
     if (!symbol) return;
     const svg = use.closest("svg");
@@ -3491,22 +3651,22 @@ function sanitizeDocument(doc, options, warnings) {
       const value = node.getAttribute(attribute);
       if (!isSafeUrl(value, attribute, node)) {
         node.removeAttribute(attribute);
-        warning(warnings, "unsafe-url-removed", "已移除 javascript/data/blob 等不安全 URL。");
+        warning(warnings, "unsafe-url-removed", "Unsafe URLs (javascript:, data:, blob:) were removed.");
       } else if (/^(?:https?:)?\/\//i.test(value)) {
-        warning(warnings, "external-resource", "页面包含外部链接或资源，导入后可能继续访问第三方域名。");
+        warning(warnings, "external-resource", "The page links to external resources; after import they may still load from third-party domains.");
       }
     });
     if (node.hasAttribute("srcset")) {
       const candidates = node.getAttribute("srcset").split(",").map(item => item.trim().split(/\s+/)[0]);
       if (candidates.some(url => !isSafeUrl(url, "src", node))) {
         node.removeAttribute("srcset");
-        warning(warnings, "unsafe-srcset-removed", "已移除包含不安全 URL 的 srcset。");
+        warning(warnings, "unsafe-srcset-removed", "srcset entries with unsafe URLs were removed.");
       }
     }
     const inlineStyle = node.getAttribute("style") || "";
     if (/(?:expression\s*\(|url\s*\(\s*['\"]?\s*javascript:|behavior\s*:|-moz-binding)/i.test(inlineStyle)) {
       node.removeAttribute("style");
-      warning(warnings, "unsafe-inline-style-removed", "已移除包含危险表达式的内联样式。");
+      warning(warnings, "unsafe-inline-style-removed", "Inline styles with unsafe expressions were removed.");
     }
     if (node.hasAttribute("style")) {
       sanitizeStyleDeclaration(node.style, warnings);
@@ -3581,6 +3741,48 @@ function bodyPayload(doc, keepStyles) {
   return `${links}\n${styles}\n${doc.body.innerHTML}`.trim();
 }
 
+// 简写里带 var() 时，浏览器把它展开出的每个长写属性记成「待替换」，getPropertyValue(长写) 返回空串。
+//   逐个长写拼回去就成了 `background-image:;` —— 无效声明，整条背景静默消失。AI 生成的页面几乎都用 CSS 变量
+//   （真实渲染比对：渐变 CTA、logo 色块全丢，2026-10-15 Northwind 测试页）。空值时回到它所属的简写取原文，同一简写只写一次。
+function shorthandCandidates(property) {
+  const out = [];
+  if (/^border-(top|bottom)-(left|right)-radius$/.test(property)) out.push("border-radius");
+  if (/^(top|right|bottom|left)$/.test(property)) out.push("inset");
+  if (/^(row|column)-gap$/.test(property)) out.push("gap");
+  if (/^overflow-[xy]$/.test(property)) out.push("overflow");
+  if (/^(white-space-collapse|text-wrap-mode)$/.test(property)) out.push("white-space");
+  let p = property;
+  while (p.includes("-")) {
+    p = p.slice(0, p.lastIndexOf("-"));
+    out.push(p);
+  }
+  return out;
+}
+
+function declarationEntries(style) {
+  const entries = [];
+  const done = new Set();
+  for (const property of style) {
+    const value = style.getPropertyValue(property);
+    if (value !== "") {
+      entries.push([property, value, style.getPropertyPriority(property)]);
+      continue;
+    }
+    const shorthand = shorthandCandidates(property).find(name => style.getPropertyValue(name) !== "");
+    if (!shorthand || done.has(shorthand)) continue;   // 取不回原文就不写，至少不留无效声明
+    done.add(shorthand);
+    entries.push([shorthand, style.getPropertyValue(shorthand), style.getPropertyPriority(shorthand)]);
+  }
+  return entries;
+}
+
+// 内容被 Elementor 自己的标记重画的小组件：源里它们的子节点在产物里不存在，样式已经量进设置。
+//   打到这些子节点上的规则留着只会误伤 Elementor 的内部标记 —— `.stat span{font-size:15px}` 命中计数器的
+//   数字 <span>，把 44px 的数字压成 15px 灰字（2026-10-15 Northwind 测试页）。
+//   文本编辑器 / 标题 / HTML / 折叠面板的内容带着源 HTML，不在此列。
+const ABSORBING_WIDGETS = new Set(["counter", "testimonial", "star-rating", "progress", "social-icons", "icon-box", "image-box", "image", "video", "google_maps", "image-gallery", "image-carousel"]);
+const POSITION_OFFSET_PROPERTIES = new Set(["position", "top", "right", "bottom", "left", "inset", "inset-block", "inset-inline", "inset-block-start", "inset-block-end", "inset-inline-start", "inset-inline-end"]);
+
 function filterCssText(css, options) {
   const colorProperties = new Set([
     "color", "background", "background-color", "background-image", "border-color",
@@ -3614,6 +3816,20 @@ function filterCssText(css, options) {
   ]);
   const convertedSet = options.convertedNodes || new Set();
   const convertedDoc = convertedSet.size ? convertedSet.values().next().value.ownerDocument : null;
+  // 节点是否被「自己重画内容」的小组件吸收：往上找最近的已转换祖先，看它变成了什么。按节点缓存（规则多、命中重复）。
+  const absorbedCache = new Map();
+  const absorbedIntoWidget = node => {
+    if (absorbedCache.has(node)) return absorbedCache.get(node);
+    let result = false;
+    for (let up = node.parentElement; up; up = up.parentElement) {
+      if (!convertedSet.has(up)) continue;
+      const element = options.nodeElementMap?.get(up);
+      result = !!element && element.elType === "widget" && ABSORBING_WIDGETS.has(element.widgetType);
+      break;
+    }
+    absorbedCache.set(node, result);
+    return result;
+  };
   try {
     const sheet = new CSSStyleSheet();
     sheet.replaceSync(css);
@@ -3622,12 +3838,22 @@ function filterCssText(css, options) {
         const isStateRule = /:(?!root\b)/.test(rule.selectorText);
         // 用浏览器原生 querySelectorAll 查一次再和已转换节点取交集 —— 原来对每条规则拿上千个节点逐个 matches，
         //   Bootstrap 整页（几千条规则）这一步就要近半秒（自审插桩实测）
-        let matchedRoots = [];
+        let matched = [];
         if (!isStateRule && convertedDoc) {
           try {
-            matchedRoots = [...convertedDoc.querySelectorAll(rule.selectorText)].filter(node => convertedSet.has(node));
+            matched = [...convertedDoc.querySelectorAll(rule.selectorText)];
           } catch { /* 选择器浏览器不认 */ }
         }
+        const matchedRoots = matched.filter(node => convertedSet.has(node));
+        // 只命中「被吸收的子节点」（和已转换根）的规则：映射过的属性剥掉。还命中别的源节点（文本编辑器里的原样 HTML）就照旧保留。
+        const absorbedOnly = matched.length > matchedRoots.length
+          && matched.every(node => convertedSet.has(node) || absorbedIntoWidget(node));
+        // 绝对定位已写进小组件的 _position / _offset_*：规则里的 position/top/left 若留着，会再作用到文本编辑器里
+        //   同类名的内层元素上，把文字推出自己的底色块（定价卡「Most popular」角标，2026-10-15 Northwind 测试页）。
+        const positionMapped = matchedRoots.some(node => !!options.nodeElementMap?.get(node)?.settings?._position);
+        // 从 var() 简写取回的整条 `background`：只有真的画了渐变 / 图片才可能要留；只是底色的话颜色已经进了设置，
+        //   留着会在小组件外层再铺一块直角色块（圆角按钮背后多出方形底色）。
+        const rootsPaintImage = matchedRoots.some(node => convertedDoc.defaultView.getComputedStyle(node).backgroundImage !== "none");
         // 变成 HTML 小组件的根元素不算：它的样式没有任何设置承接，剥掉就是纯丢失
         const appliesToConvertedRoot = matchedRoots.some(node => options.nodeElementMap?.get(node)?.widgetType !== "html");
         // 表格整块进文本编辑器，宽度类属性没有任何设置项承接 —— 剥掉就是纯丢失
@@ -3637,20 +3863,22 @@ function filterCssText(css, options) {
           const st = options.nodeElementMap?.get(node)?.settings;
           return !!st && (st.background_background === "gradient" || !!st.background_image || st._background_background === "gradient" || !!st._background_image);
         });
-        const declarations = [...rule.style]
-          .filter(property => {
+        const declarations = declarationEntries(rule.style)
+          .filter(([property]) => {
             const normalized = property.toLowerCase();
             if (options.colorMode === "site" && colorProperties.has(normalized)) return false;
             if (options.fontMode === "site" && fontProperties.has(normalized)) return false;
             if (tableOnly && TABLE_KEEP_PROPERTIES.has(normalized)) return true;
+            if (positionMapped && POSITION_OFFSET_PROPERTIES.has(normalized)) return false;
             // 背景图 / 渐变：只有设置里真的接住了（两色渐变或 url 图）才剥 —— 否则 CSS 是唯一载体。
             //   剥：Bootstrap 的 .bg-gradient{background-image:…!important} 会盖掉设置里的渐变（蓝色徽章消失）；
             //   留：三色以上的渐变设置只能退成首色，完整渐变靠 CSS（剥掉后渐变 hero 变纯色，真实渲染比对抓出）。
+            if (appliesToConvertedRoot && normalized === "background" && !rootsPaintImage) return false;
             if (appliesToConvertedRoot && /^background(-image)?$/.test(normalized)) return !bgMapped;
-            if (appliesToConvertedRoot) return !mappedProperties.has(normalized);
+            if (appliesToConvertedRoot || absorbedOnly) return !mappedProperties.has(normalized);
             return true;
           })
-          .map(property => `${property}:${rule.style.getPropertyValue(property)}${rule.style.getPropertyPriority(property) ? " !important" : ""};`)
+          .map(([property, value, priority]) => `${property}:${value}${priority ? " !important" : ""};`)
           .join("");
         return declarations ? `${rule.selectorText}{${declarations}}` : "";
       }
@@ -3660,7 +3888,7 @@ function filterCssText(css, options) {
     }).join("");
     return serializeRules(sheet.cssRules);
   } catch {
-    warning(options.warnings || [], "css-filter-failed", "部分原生模式 CSS 无法安全解析，已移除该段样式。");
+    warning(options.warnings || [], "css-filter-failed", "Some CSS could not be parsed safely in native mode and was removed.");
     return "";
   }
 }
@@ -3840,8 +4068,9 @@ async function applyResponsiveSettings(frame, options) {
           const nr = node.getBoundingClientRect ? node.getBoundingClientRect() : null;
           const pr = node.parentElement && node.parentElement.getBoundingClientRect ? node.parentElement.getBoundingClientRect() : null;
           let imgWidth = null;
+          const areaW = node.parentElement ? gridAreaWidth(node, node.parentElement) : 0;   // 同 buildImage：grid 里按单元格算
           if (nr && pr && pr.width > 0) {
-            const pct = nr.width / pr.width * 100;
+            const pct = nr.width / (areaW || pr.width) * 100;
             if (pct < 97) imgWidth = { unit: "%", size: Math.round(pct * 100) / 100, sizes: [] };
           } else {
             imgWidth = unit(style.width);
@@ -3888,7 +4117,7 @@ function countTree(elements) {
 
 export async function convertHtml(source, options, frame) {
   const report = typeof options.onProgress === "function" ? options.onProgress : () => {};
-  report(0.04, "解析 HTML…");
+  report(0.04, "Parsing HTML…");
   options.headingState = { seen: false, levelMap: new Map() };
   options.convertedNodes = new Set();
   options.nodeElementMap = new Map();
@@ -3919,10 +4148,10 @@ export async function convertHtml(source, options, frame) {
     containmentStyle.setAttribute("data-hte-internal", "1"); // 内部隔离样式，不得进入输出的 CSS 小部件
     parsed.head.appendChild(containmentStyle);
   }
-  report(0.12, "清理与作用域化…");
+  report(0.12, "Cleaning and scoping…");
   const preservesDataImages = options.mode === "fidelity"
     || (options.mode === "native" && options.imageMode !== "placeholder" && (options.assetUrlMode || "safe") === "preserve");
-  if (options.optimizeImages && preservesDataImages) report(0.18, "优化内嵌图片…");
+  if (options.optimizeImages && preservesDataImages) report(0.18, "Optimizing embedded images…");
   const imageOptimization = options.optimizeImages && preservesDataImages
     ? await optimizeDataImages(parsed)
     : { count: 0, originalBytes: 0, optimizedBytes: 0, savedBytes: 0 };
@@ -3934,13 +4163,13 @@ export async function convertHtml(source, options, frame) {
   let elements;
 
   if (options.mode === "fidelity") {
-    report(0.85, "生成 Elementor 数据…");
+    report(0.85, "Building Elementor data…");
     elements = [rootContainer([htmlWidget(bodyPayload(parsed, options.keepStyles))])];
   } else {
     if (options.nativeStrategy === "framework") {
-      warning(warnings, "framework-only", "仅框架模式已省略标题、文本、图片、按钮等内容，只保留可编辑容器布局。");
+      warning(warnings, "framework-only", "Layout-only mode left out headings, text, images and buttons; only the editable container layout was kept.");
     }
-    report(0.22, "加载预览布局…");
+    report(0.22, "Loading the preview layout…");
     frame.style.width = "1440px";
     await loadFrame(frame, safeHtml);
     const liveDoc = frame.contentDocument;
@@ -3961,7 +4190,7 @@ export async function convertHtml(source, options, frame) {
         await new Promise(resolve => setTimeout(resolve));
       }
     }
-    report(0.74, "计算响应式布局…");
+    report(0.74, "Measuring responsive layouts…");
     await applyResponsiveSettings(frame, options);
     const css = options.keepStyles && options.nativeStrategy !== "framework"
       ? [...liveDoc.querySelectorAll("style")]
@@ -3976,12 +4205,18 @@ export async function convertHtml(source, options, frame) {
     const boxTitleReset = css && treeHasWidget(converted, ["icon-box", "image-box"])
       ? `\n<style>#${conversionId} .elementor-icon-box-title,#${conversionId} .elementor-image-box-title{margin-block-start:0;}</style>`
       : "";
+    // 只有底线的 FAQ（accordionStyle 打的标记类）：经典手风琴每项是整圈边框 + 内容区上边线，改成每项只留底线。
+    //   宽度和颜色仍由 border_width / border_color 控件给，这里只把其余三边归零。
+    const accordionLines = css && treeHasCssClass(converted, ACCORDION_LINES_CLASS)
+      ? `\n<style>#${conversionId} .${ACCORDION_LINES_CLASS} .elementor-accordion-item{border-top-width:0;border-left-width:0;border-right-width:0;}`
+        + `#${conversionId} .${ACCORDION_LINES_CLASS} .elementor-tab-content,#${conversionId} .${ACCORDION_LINES_CLASS} .elementor-tab-title.elementor-active{border-width:0;}</style>`
+      : "";
     // 本块 CSS 放进转换根容器（带作用域 id 的那个）里当第一个子元素，而不是和它并列 ——
     // 并列时外面还得再包一层 rootContainer，每个区块在导航器里凭空多一层容器。
     // ⚠ 例外：源 CSS 里有位置类选择器（:first-child / :nth-child …）命中根容器的直接子元素时，样式小组件插在
     //   第一个位置会让这些规则失效 —— 那就退回原来的结构（样式小组件放在根容器外面，多一层容器）。
     if (css) {
-      const styleWidget = htmlWidget(css + boxTitleReset);
+      const styleWidget = htmlWidget(css + boxTitleReset + accordionLines);
       const rootNode = liveDoc.getElementById(conversionId);
       if (converted.length === 1 && converted[0].elType === "container" && !positionalRulesHitChildren(liveDoc, rootNode)) converted[0].elements.unshift(styleWidget);
       else converted.unshift(styleWidget);
@@ -3989,7 +4224,7 @@ export async function convertHtml(source, options, frame) {
     elements = converted.length === 1 && converted[0].elType === "container" ? converted : [rootContainer(converted)];
   }
 
-  report(0.96, "打包模板…");
+  report(0.96, "Packaging the template…");
   const clipboard = { type: "elementor", siteurl: sourceRestUrl(conversionId), elements };
   const template = { content: elements, page_settings: [], version: "0.4", title: options.title || "HTML Converted Page", type: "page" };
   const stats = countTree(elements);
@@ -4010,7 +4245,7 @@ export async function convertHtml(source, options, frame) {
     });
     if (liveDoc?.documentElement) structureHtml = liveDoc.documentElement.outerHTML;
   }
-  report(1, "完成");
+  report(1, "Done");
   return { clipboard, template, stats, safeHtml: previewHtml, structureHtml, elementUid, imageOptimization, warnings, conversionId };
 }
 
