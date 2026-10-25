@@ -595,9 +595,15 @@ function backgroundAndBorder(settings, style, options, shadowPrefix = "box_shado
       }
     }
   }
-  if (style.borderTopStyle && style.borderTopStyle !== "none") {
-    settings.border_border = style.borderTopStyle;
-    if (options.colorMode !== "site") settings.border_color = style.borderTopColor;
+  // 样式与颜色取「第一条真有边框的边」，不能只看上边：只有 border-left 的引用条/时间线竖线
+  // 原来整条边框都丢了（上边是 none）。各边宽度由 dimensions() 分别取，无边框的边计算值本来就是 0。
+  const borderSide = ["Top", "Right", "Bottom", "Left"].find(side => {
+    const s = style[`border${side}Style`];
+    return s && s !== "none" && s !== "hidden" && parseFloat(style[`border${side}Width`]) > 0;
+  });
+  if (borderSide) {
+    settings.border_border = style[`border${borderSide}Style`];
+    if (options.colorMode !== "site") settings.border_color = style[`border${borderSide}Color`];
     settings.border_width = dimensions(style, "border");
   }
   const radius = [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomRightRadius, style.borderBottomLeftRadius].map(value => parseFloat(value) || 0);
@@ -1124,6 +1130,11 @@ function testimonialParts(node, win) {
   //   （「MR Head of Product」），圆形头像也没了（2026-10-15 Northwind 测试页）。宁可不认，走通用转换。
   if (win && [...node.querySelectorAll("*")].some(el => !quote.contains(el) && !el.children.length
     && /^[\p{L}\p{N}]{1,3}$/u.test(cleanText(el.textContent)) && hasVisualFrame(win.getComputedStyle(el)))) return null;
+  // 引用外有一行只由星号组成的评分（★★★★☆）：Elementor 的评价小组件没有星级字段，硬套会把星号当成姓名
+  //   （名字变成「★」、职位开头一串星，2026-10 模板库 reviews 模块实测），评分也丢了。
+  //   不认作评价，走通用转换 —— 星号那行会变成 Star Rating，引用变成文本，什么都不丢。
+  if ([...node.querySelectorAll("*")].some(el => !quote.contains(el) && !el.contains(quote)
+    && /^[★☆✩✭✮\s]+$/u.test(el.textContent) && /[★☆✩✭✮]/u.test(el.textContent))) return null;
   const outsideEls = [...node.querySelectorAll("cite, strong, b, figcaption, div, span, p")].filter(el => !quote.contains(el) && cleanText(el.textContent));
   const nameEl = outsideEls.find(el => /^(CITE|STRONG|B)$/.test(el.tagName)) || outsideEls.find(el => !el.querySelector("*")) || null;
   const name = cleanText(nameEl?.textContent) || outside;
@@ -2875,7 +2886,17 @@ function formLayoutAndStyle(settings, node, fieldEls, submit, view, options) {
     settings.row_gap = { unit: "px", size: rowGap ?? 0, sizes: [] };
     // Elementor 的每个字段组宽 = 百分比 × (表单宽 + 间距)，组内左右各留半个间距
     const pct = r => ((r.width + g) / (formRect.width + g)) * 100;
-    for (const f of visible) settings.form_fields[f.i].width = String(snapFormWidth(pct(f.r)));
+    // 勾选框 / 单选框：控件本身只有十几像素宽，按它算会吸附成 20%，导入后整行文字被挤成窄条。
+    // 改量「控件 + 它的 label」的外接矩形；包着它的父元素里没有别的表单字段时，量父元素（整行）。
+    const fieldRect = el => {
+      if (!/^(checkbox|radio)$/i.test(el.type || "")) return el.getBoundingClientRect();
+      const parent = el.parentElement;
+      if (parent && parent !== node && parent.querySelectorAll("input,select,textarea").length === 1) return parent.getBoundingClientRect();
+      const rects = [el, ...(el.labels || [])].map(x => x.getBoundingClientRect()).filter(r => r.width > 0);
+      const left = Math.min(...rects.map(r => r.left)), right = Math.max(...rects.map(r => r.right));
+      return { width: right - left };
+    };
+    for (const f of visible) settings.form_fields[f.i].width = String(snapFormWidth(pct(fieldRect(f.el))));
     if (submit) settings.button_width = String(snapFormWidth(pct(submit.getBoundingClientRect())));
   }
   const first = visible[0]?.el;
